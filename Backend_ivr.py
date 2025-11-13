@@ -18,7 +18,7 @@ def home_post():
 async def ivr_start(request: Request):
     response = VoiceResponse()
     response.say(
-        "Welcome to the Railway Inquiry System. "
+        "Welcome to the IRCTC Booking Inquiry System. "
         "Please enter your P N R number followed by the pound key."
     )
     response.gather(num_digits=6, action="/handle-key", method="POST")
@@ -51,3 +51,4 @@ def test_pnr(pnr: str):
 @app.get("/favicon.ico")
 async def favicon():
     return Response(status_code=204)
+
