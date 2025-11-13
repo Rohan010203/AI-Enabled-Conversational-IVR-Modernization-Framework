@@ -7,10 +7,10 @@ import logging
 
 app = FastAPI(title="AI-Enabled Conversational IVR Backend")
 
-# Enable CORS for testing via browser or API tools
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # adjust if needed
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -19,7 +19,7 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO)
 
 # -----------------------
-# 📞 Milestone 2: DTMF IVR
+# 📞 Milestone 2 & 3: Conversational + DTMF IVR
 # -----------------------
 
 @app.api_route("/ivr", methods=["GET", "POST"])
@@ -27,17 +27,12 @@ async def ivr_entry():
     """Main IVR greeting and menu"""
     twiml = """
     <Response>
-        <Say voice="alice">Hello, welcome to Indian Railway Booking System.</Say>
+        <Say voice="alice">Welcome to Indian Railway Booking System.</Say>
+        <Pause length="1"/>
         <Say>
-            Press 1 for Train Availability.
+            Press 1 for Train Booking.
             Press 2 for PNR Status.
-            Press 3 to talk to a Customer Agent.
-            Press 4 for Ticket Cancellation.
-            Press 5 for Refund Status.
-            Press 6 for Train Running Status.
-            Press 7 for Seat Availability.
-            Press 8 for Station Enquiry.
-            Press 9 to hear the Main Menu again.
+            Press 3 to talk to Customer Agent.
         </Say>
         <Gather input="dtmf" timeout="5" numDigits="1" action="/ivr/handle-key" method="POST" />
     </Response>
@@ -49,122 +44,90 @@ async def ivr_entry():
 async def handle_key(request: Request):
     """Handles numeric keypad input"""
     form = await request.form()
-    digit_pressed = form.get("Digits")
-    logging.info(f"Digit pressed: {digit_pressed}")
+    digit = form.get("Digits")
+    logging.info(f"Digit pressed: {digit}")
 
-    messages = {
-        "1": "You selected Train Availability. Please visit Indian Railways dot gov dot in for live schedules.",
-        "2": "You selected PNR Status. Please enter your ten digit PNR on the website or app.",
-        "3": "Connecting you to the nearest Railway customer agent. Please wait.",
-        "4": "You selected Ticket Cancellation. Please log in to your IRCTC account to cancel tickets.",
-        "5": "You selected Refund Status. Refunds are processed within seven working days.",
-        "6": "You selected Train Running Status. Please check live updates on Indian Railways dot gov dot in.",
-        "7": "You selected Seat Availability. Please check the availability chart on the IRCTC website.",
-        "8": "You selected Station Enquiry. Please contact the station help desk for more information.",
-    }
-
-    if digit_pressed == "9":
-        twiml = "<Response><Redirect>/ivr</Redirect></Response>"
-        return Response(content=twiml, media_type="application/xml")
-
-    msg = messages.get(digit_pressed, "Invalid choice. Please press a number between 1 and 9 next time.")
-
-    twiml = f"<Response><Say voice='alice'>{msg}</Say><Hangup/></Response>"
-    return Response(content=twiml, media_type="application/xml")
-
-
-# ----------------------------
-# 🗣️ Milestone 3: Speech IVR
-# ----------------------------
-
-def book_ticket(): return "Your train ticket has been booked successfully."
-def cancel_ticket(): return "Your ticket has been cancelled successfully."
-def check_refund(): return "Your refund is being processed and will be credited soon."
-def train_status(): return "The train is running on time as per schedule."
-def seat_availability(): return "Seats are available for your selected route."
-def station_enquiry(): return "Please mention the station name for more information."
-def unknown_intent(): return "Sorry, I didn’t understand your request. Please try again."
-
-def detect_intent(speech_text: str):
-    text = speech_text.lower()
-    if "book" in text and "ticket" in text:
-        return "book"
-    elif "cancel" in text:
-        return "cancel"
-    elif "refund" in text:
-        return "refund"
-    elif "train" in text and "status" in text:
-        return "train_status"
-    elif "seat" in text or "availability" in text:
-        return "seat_availability"
-    elif "station" in text or "enquiry" in text:
-        return "station_enquiry"
-    else:
-        return "unknown"
-
-
-@app.api_route("/ivr/speech", methods=["GET", "POST"])
-async def ivr_speech_entry():
-    """Speech IVR entry point"""
     response = VoiceResponse()
-    gather = Gather(input="speech", action="/ivr/handle-speech", method="POST", timeout=6)
-    gather.say(
-        "Welcome to the Indian Railway Booking System. You can say book a ticket, cancel my booking, "
-        "check refund, train running status, seat availability, or station enquiry."
-    )
-    response.append(gather)
+
+    if digit == "1":
+        response.say("You selected Train Booking. Please say your destination city after the beep.", voice="alice")
+        gather = Gather(input="speech", action="/ivr/handle-booking", method="POST", timeout=6)
+        response.append(gather)
+
+    elif digit == "2":
+        response.say("You selected P N R Status. Please enter your ten digit P N R number.", voice="alice")
+        gather = Gather(input="dtmf", numDigits="10", action="/ivr/pnr-status", method="POST", timeout=10)
+        response.append(gather)
+
+    elif digit == "3":
+        response.say("Please wait while we connect you to a customer agent.", voice="alice")
+        response.dial("+911234567890")
+
+    else:
+        response.say("Invalid option. Please press 1 for booking or 2 for PNR status.", voice="alice")
+        response.redirect("/ivr")
+
     return Response(content=str(response), media_type="application/xml")
 
 
-@app.post("/ivr/handle-speech")
-async def handle_speech(request: Request):
-    """Handles speech-to-text commands"""
+# -------------------------
+# 🎟️ PNR Status Flow
+# -------------------------
+@app.post("/ivr/pnr-status")
+async def handle_pnr_status(request: Request):
+    """Handle entered PNR number"""
     form = await request.form()
-    speech_text = form.get("SpeechResult")
-    logging.info(f"Speech recognized: {speech_text}")
+    pnr = form.get("Digits")
 
     response = VoiceResponse()
 
-    if not speech_text:
-        response.say("Sorry, I didn't hear you. Please try again.", voice="alice")
-        response.hangup()
+    if not pnr or len(pnr) != 10:
+        response.say("Invalid P N R number. Please enter a ten digit number.", voice="alice")
+        response.redirect("/ivr")
         return Response(content=str(response), media_type="application/xml")
 
-    intent = detect_intent(speech_text)
-    intent_map = {
-        "book": book_ticket,
-        "cancel": cancel_ticket,
-        "refund": check_refund,
-        "train_status": train_status,
-        "seat_availability": seat_availability,
-        "station_enquiry": station_enquiry,
+    # Mock PNR status (replace with API integration if available)
+    status_map = {
+        "1234567890": "Your booking is confirmed. Train number 12049 is on time.",
+        "1111111111": "Your P N R is waitlisted. Please check after some time."
     }
-    message = intent_map.get(intent, unknown_intent)()
+
+    message = status_map.get(pnr, f"P N R {pnr} is confirmed. Your train is on schedule.")
     response.say(message, voice="alice")
     response.hangup()
+    return Response(content=str(response), media_type="application/xml")
 
+
+# -------------------------
+# 🚉 Booking Speech Flow
+# -------------------------
+@app.post("/ivr/handle-booking")
+async def handle_booking(request: Request):
+    """Handle speech for booking"""
+    form = await request.form()
+    speech_text = form.get("SpeechResult", "")
+    logging.info(f"Booking speech detected: {speech_text}")
+
+    response = VoiceResponse()
+    if not speech_text:
+        response.say("Sorry, I did not hear your destination. Please try again.", voice="alice")
+        response.redirect("/ivr")
+        return Response(content=str(response), media_type="application/xml")
+
+    destination = speech_text.strip().capitalize()
+    response.say(f"Booking train ticket to {destination}. Your ticket is confirmed. Have a safe journey!", voice="alice")
+    response.hangup()
     return Response(content=str(response), media_type="application/xml")
 
 
 # --------------------------------------
-# 🧠 Milestone 4: Health, Metrics & Tests
+# 🧠 Health & Test Endpoints
 # --------------------------------------
 
 @app.get("/health")
 async def health_check():
-    """Check if backend is running"""
+    """Health check"""
     return JSONResponse({"status": "healthy", "message": "IVR backend is running fine."})
-
-
-@app.get("/metrics")
-async def metrics():
-    """Basic performance metrics"""
-    uptime = round(time.process_time(), 2)
-    return JSONResponse({
-        "system": "AI-Enabled IVR",
-        "uptime_seconds": uptime,
-        "status": "operational"
-    })
 
 
 @app.api_route("/test/ivr", methods=["GET", "POST"])
@@ -172,26 +135,23 @@ async def test_ivr_scenarios(request: Request):
     """Simulate IVR scenarios for testing"""
     if request.method == "GET":
         return JSONResponse({
-            "message": "Send a POST request with JSON { 'input': 'book ticket' } to test intent detection."
+            "message": "Send POST { 'input': 'book ticket to delhi' } to test intent flow."
         })
     data = await request.json()
     test_input = data.get("input", "").lower()
-    intent = detect_intent(test_input)
-    logging.info(f"Test -> Input: {test_input}, Intent: {intent}")
-    return JSONResponse({"input": test_input, "detected_intent": intent})
+    if "pnr" in test_input:
+        return JSONResponse({"response": "Please enter your 10-digit PNR number."})
+    elif "book" in test_input:
+        return JSONResponse({"response": "Please say your destination city."})
+    else:
+        return JSONResponse({"response": "Sorry, I didn’t understand your request."})
 
 
 @app.get("/")
 async def home():
-    """Root endpoint for Render"""
+    """Root endpoint"""
     return JSONResponse({
-        "message": "Welcome to the AI-Enabled Conversational IVR Modernization Framework 🚀",
+        "message": "Welcome to AI-Enabled Conversational IVR 🚀",
         "status": "running",
-        "available_endpoints": [
-            "/ivr",
-            "/ivr/speech",
-            "/health",
-            "/metrics",
-            "/test/ivr"
-        ]
+        "endpoints": ["/ivr", "/health", "/test/ivr"]
     })
