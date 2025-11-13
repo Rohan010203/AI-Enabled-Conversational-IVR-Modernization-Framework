@@ -39,7 +39,7 @@ flowchart TD
 | **Hosting** |  Render  |
 | **Monitoring** | Twilio Console |
 | **Environment Management** | dotenv |
-
+---
 🪪 License
 
 This project is licensed under the MIT License — feel free to use and modify it for your own educational or commercial projects.
