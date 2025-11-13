@@ -26,9 +26,9 @@ This project enables customers to interact with systems in a **natural, human-li
 ```mermaid
 flowchart TD
     A[Caller] -->|Voice Call| B[Twilio IVR]
-    B --> C[Flask or FastAPI Backend]
-    C --> D[Speech to Text Engine - Twilio or Google STT]
-    D --> E[NLU Engine - OpenAI, Dialogflow, or Rasa]
+    B --> C[ FastAPI Backend]
+    C --> D[Speech to Text Engine - Twilio ]
+    D --> E[NLU Engine -  Dialogflow ]
     E --> F[Intent Classification and Response Generation]
     F --> G[Backend Logic and Database]
     G --> H[Twilio XML Response]
