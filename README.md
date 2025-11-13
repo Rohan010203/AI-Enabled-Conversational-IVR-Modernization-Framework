@@ -21,6 +21,48 @@ This project enables customers to interact with systems in a **natural, human-li
 - 🔐 **Secure Environment** – Managed using `.env` for storing sensitive credentials.
 
 ---
+## 🏁 Project Milestones
+
+### 🧩 Milestone 1 – Legacy System Analysis
+- Assess current VXML-based IVR systems  
+- Document architecture, integration needs, and compatibility gaps  
+- Identify technical challenges and constraints  
+
+### ⚙️ Milestone 2 – DTMF IVR Flow
+- Welcome menu with multiple options:
+  - 1️⃣ Train Availability  
+  - 2️⃣ PNR Status  
+  - 3️⃣ Customer Agent  
+  - 4️⃣ Ticket Cancellation  
+  - 5️⃣ Refund Status  
+  - 6️⃣ Train Running Status  
+  - 7️⃣ Seat Availability  
+  - 8️⃣ Station Enquiry  
+  - 9️⃣ Return to Main Menu
+- TwiML responses for each user input  
+- Redirects and graceful handling of invalid options  
+
+### 🗣️ Milestone 3 – Speech-Based IVR
+- Speech recognition input via Twilio `<Gather input="speech">`  
+- NLP-powered **intent detection**  
+- Supported intents:
+  - 🎫 `book_ticket` – Books a ticket  
+  - ❌ `cancel_ticket` – Cancels an existing ticket  
+  - 💰 `check_refund` – Checks refund status  
+  - 🚂 `train_status` – Checks train running status  
+  - 🪑 `seat_availability` – Checks seat availability  
+  - 🏢 `station_enquiry` – Handles station-related queries  
+  - 🤔 `unknown_intent` – Handles unrecognized input  
+
+### 📊 Milestone 4 – Monitoring, Testing & Deployment
+- `/health` → Health check endpoint  
+- `/metrics` → Returns system uptime and operational status  
+- `/test/ivr` → QA testing endpoint for simulating user input and verifying detected intents  
+- Deploy the integrated IVR system in production  
+- Monitor post-deployment system behavior  
+- Resolve performance issues and optimize conversational flows
+
+---  
 ## 🏗️ System Architecture
 
 ```mermaid
