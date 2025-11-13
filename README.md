@@ -5,7 +5,13 @@ The **AI-Enabled Conversational IVR Modernization Framework** is designed to upg
 This project enables customers to interact with systems in a **natural, human-like conversational flow** instead of menu-based keypress inputs.
 
 ---
+## Objectives
+- Modernize legacy IVR systems to AI-driven conversational IVR.  
+- Enable seamless integration with ACS and BAP platforms.  
+- Improve call routing, user experience, and operational efficiency.  
+- Capture actionable analytics from voice interactions.
 
+---  
 ## 🚀 Key Features
 - 🔊 **Voice Interaction** – Handles natural language through Twilio Voice API.
 - 🧠 **AI-Powered Understanding** – Uses NLP/NLU to extract user intent and respond intelligently.
