@@ -76,6 +76,19 @@ flowchart TD
     G --> H[Twilio XML Response]
     H -->|Voice Reply| A
 ```
+ 📁 ivr-project/
+│
+├─ Backend_ivr.py            # FastAPI backend for AI Conversational IVR 
+├─ requirements.txt          # Python dependencies
+├─ Procfile                  # For deployment (Render)
+├─ README.md                 # Project documentation + deployment URL
+├─ LICENSE.md                # License info
+├─ Milestone 1.docx          # Milestone report/document
+├─ agile.docx                # Agile methodology documentation
+├─ Defect_Tracker.docx       # Defect tracking report
+├─ Unit_Test/                # Folder for unit test scripts and results
+└─ PPT/                      # Folder containing presentation files
+---
 ## ⚙️ Tech Stack
 
 | Component | Technology Used |
@@ -87,6 +100,28 @@ flowchart TD
 | **Hosting** |  Render  |
 | **Monitoring** | Twilio Console |
 | **Environment Management** | dotenv |
+
+# AI Conversational IVR
+
+This is a **speech-only AI-enabled IVR system** supporting English and Hindi with Indian voices.
+
+## Deployment
+
+The app is deployed and accessible at:
+
+https://ai-enabled-conversational-ivr-fjpb.onrender.com
+
+## Usage
+
+- Open the above URL in your browser or use Twilio to connect a voice call.
+- Speak in **English** or **Hindi** to interact with the IVR.
+- Available commands:
+  - "Where is my train" → Get train location
+  - "Seat availability" → Check available seats
+  - "Book ticket" → Book a ticket
+  - "Cancel ticket" → Cancel a booked ticket
+  - "Refund status" → Check refund status
+
 ---
 ## 🪪 License
 
