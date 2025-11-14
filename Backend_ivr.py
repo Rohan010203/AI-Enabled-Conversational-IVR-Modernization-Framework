@@ -5,7 +5,7 @@ from twilio.twiml.voice_response import VoiceResponse, Gather
 import logging
 import time
 
-app = FastAPI(title="AI Conversational IVR – English & Hindi (Speech Only)")
+app = FastAPI(title="AI Conversational IVR – Speech Only (Indian Voices)")
 
 # ----------------- CORS -----------------
 app.add_middleware(
@@ -19,8 +19,8 @@ logging.basicConfig(level=logging.INFO)
 
 # ----------------- VOICES -----------------
 VOICES = {
-    "en": ("Polly.Joanna", "en-IN"),
-    "hi": ("Polly.Aditi", "hi-IN"),
+    "en": ("Polly.Raveena", "en-IN"),  # Indian English voice
+    "hi": ("Polly.Aditi", "hi-IN"),    # Indian Hindi voice
 }
 
 # ----------------- HOME / LANGUAGE SELECTION -----------------
@@ -34,8 +34,9 @@ async def ivr_language():
         method="POST"
     )
     gather.say(
-        "Please say your preferred language. Say English or Hindi ke liye Hindi bole Hindi.",
-        voice="Polly.Joanna",
+        "Welcome to Indian Railway Smart Voice System. "
+        "Please say your preferred language. Say English for English or Hindi ke liye Hindi bole.",
+        voice="Polly.Raveena",
         language="en-IN"
     )
     response.append(gather)
@@ -50,12 +51,16 @@ async def set_language(request: Request):
 
     if "english" in speech:
         lang = "en"
-        response.say("You selected English.", voice="Polly.Joanna", language="en-IN")
+        response.say("You selected English.", voice="Polly.Raveena", language="en-IN")
     elif "hindi" in speech or "hi" in speech:
         lang = "hi"
         response.say("Aapne Hindi chuni hai.", voice="Polly.Aditi", language="hi-IN")
     else:
-        response.say("Sorry, I did not understand. Please try again.", voice="Polly.Joanna", language="en-IN")
+        response.say(
+            "Sorry, I did not understand. Please say English or Hindi.",
+            voice="Polly.Raveena",
+            language="en-IN"
+        )
         response.redirect("/ivr")
         return Response(str(response), media_type="application/xml")
 
@@ -77,15 +82,16 @@ async def main_menu(lang: str = "en"):
 
     if lang == "en":
         gather.say(
-            "Welcome to Indian Railway Smart Voice System. "
-            "You may say: Where is my train, Seat availability, Book ticket, Cancel ticket, Refund status.",
+            "Please tell me how can I help you today. You can say: "
+            "Where is my train, Seat availability, Book ticket, Cancel ticket, Refund status.",
             voice=voice,
             language=lang_code
         )
     else:
         gather.say(
-            "Indian Railway Smart Voice System mein aapka swagat hai. "
-            "Aap bol sakte hain: Meri train kahan hai, Seat availability, Ticket book karo, Ticket cancel karo, Refund status.",
+            "Kripya bataye aaj main aapki kaise madad kar sakta hoon. "
+            "Aap bol sakte hain: Meri train kahan hai, Seat availability, Ticket book karo, "
+            "Ticket cancel karo, Refund status.",
             voice=voice,
             language=lang_code
         )
@@ -125,65 +131,78 @@ async def handle_input(request: Request, lang: str = "en"):
             action=f"/ivr/{intent}?lang={lang}",
             method="POST"
         )
-        if lang == "en":
-            gather.say(f"Please say your train number for {intent.replace('_',' ')}.", voice=voice, language=lang_code)
-        else:
-            gather.say(f"Kripya apna train number bolen for {intent.replace('_',' ')}.", voice=voice, language=lang_code)
+
+        # Ask train number or PNR based on intent
+        if intent in ["book_ticket", "seat_availability", "train_location"]:
+            prompt_en = f"Please say your train number to proceed with {intent.replace('_',' ')}."
+            prompt_hi = f"Kripya apna train number bolen for {intent.replace('_',' ')}."
+        else:  # cancel_ticket or refund_status
+            prompt_en = f"Please say your PNR number to proceed with {intent.replace('_',' ')}."
+            prompt_hi = f"Kripya apna PNR number bolen for {intent.replace('_',' ')}."
+
+        gather.say(prompt_en if lang=="en" else prompt_hi, voice=voice, language=lang_code)
         response.append(gather)
         return Response(str(response), media_type="application/xml")
 
     # Unknown input
     if lang == "en":
-        response.say("Sorry, I did not understand.", voice=voice, language=lang_code)
+        response.say("Sorry, I did not understand. Let's try again.", voice=voice, language=lang_code)
     else:
-        response.say("Maaf kijiye, main samajh nahi paaya.", voice=voice, language=lang_code)
+        response.say("Maaf kijiye, main samajh nahi paaya. Dobara koshish karein.", voice=voice, language=lang_code)
 
     response.redirect(f"/ivr/main-menu?lang={lang}")
     return Response(str(response), media_type="application/xml")
 
 # ----------------- INTENT HANDLERS -----------------
-async def handle_train_no_response(request: Request, lang: str, message_template: str):
+async def handle_number_response(request: Request, lang: str, message_template: str):
     form = await request.form()
-    train_no = form.get("SpeechResult", "00000")
+    number = form.get("SpeechResult", "00000")  # Train number or PNR
     response = VoiceResponse()
     voice, lang_code = VOICES[lang]
-    response.say(message_template.format(train_no=train_no), voice=voice, language=lang_code)
+
+    response.say(message_template.format(number=number), voice=voice, language=lang_code)
+    response.say(
+        "Thank you for using Indian Railway Smart Voice System. Goodbye!" if lang=="en"
+        else "Indian Railway Smart Voice System ka upyog karne ke liye dhanyavaad. Alvida!",
+        voice=voice,
+        language=lang_code
+    )
     response.hangup()
     return Response(str(response), media_type="application/xml")
 
 @app.post("/ivr/train_location")
 async def train_location(request: Request, lang: str = "en"):
-    return await handle_train_no_response(
+    return await handle_number_response(
         request, lang,
-        message_template="Train {train_no} is currently at Pune Junction." if lang=="en" else "Train {train_no} samay Pune Junction par hai."
+        message_template="Train {number} is currently at Pune Junction." if lang=="en" else "Train {number} samay Pune Junction par hai."
     )
 
 @app.post("/ivr/seat_availability")
 async def seat_availability(request: Request, lang: str = "en"):
-    return await handle_train_no_response(
+    return await handle_number_response(
         request, lang,
-        message_template="Seats are available for train {train_no}." if lang=="en" else "Train {train_no} ke liye seats available hain."
+        message_template="Seats are available for train {number}." if lang=="en" else "Train {number} ke liye seats available hain."
     )
 
 @app.post("/ivr/book_ticket")
 async def book_ticket(request: Request, lang: str = "en"):
-    return await handle_train_no_response(
+    return await handle_number_response(
         request, lang,
-        message_template="Ticket booked for train {train_no}." if lang=="en" else "Train {train_no} ke liye ticket book ho gaya hai."
+        message_template="Ticket booked for train {number}." if lang=="en" else "Train {number} ke liye ticket book ho gaya hai."
     )
 
 @app.post("/ivr/cancel_ticket")
 async def cancel_ticket(request: Request, lang: str = "en"):
-    return await handle_train_no_response(
+    return await handle_number_response(
         request, lang,
-        message_template="Ticket for train {train_no} has been cancelled." if lang=="en" else "Train {train_no} ke liye ticket cancel ho gaya hai."
+        message_template="Ticket for PNR {number} has been cancelled." if lang=="en" else "PNR {number} ke liye ticket cancel ho gaya hai."
     )
 
 @app.post("/ivr/refund_status")
 async def refund_status(request: Request, lang: str = "en"):
-    return await handle_train_no_response(
+    return await handle_number_response(
         request, lang,
-        message_template="Refund processed for train {train_no}." if lang=="en" else "Train {train_no} ke liye refund process ho gaya hai."
+        message_template="Refund processed for PNR {number}." if lang=="en" else "PNR {number} ke liye refund process ho gaya hai."
     )
 
 # ----------------- HEALTH & METRICS -----------------
@@ -197,5 +216,4 @@ async def metrics():
 
 @app.get("/")
 async def root():
-    return {"message": "AI Enabled Conversational IVR (Speech Only, English + Hindi) 🚀"}
-
+    return {"message": "AI Enabled Conversational IVR (Speech Only, English + Hindi, Indian Voices) 🚀"}
