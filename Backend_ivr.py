@@ -7,6 +7,7 @@ import time
 
 app = FastAPI(title="AI Conversational IVR – Speech Only (Indian Voices)")
 
+# Milestone 2 #
 # ----------------- CORS -----------------
 app.add_middleware(
     CORSMiddleware,
@@ -99,6 +100,9 @@ async def main_menu(lang: str = "en"):
     response.append(gather)
     return Response(str(response), media_type="application/xml")
 
+
+
+# milestone 3 #
 # ----------------- INTENT DETECTION -----------------
 def detect_intent(text: str):
     text = text.lower()
@@ -205,6 +209,9 @@ async def refund_status(request: Request, lang: str = "en"):
         message_template="Refund processed for PNR {number}." if lang=="en" else "PNR {number} ke liye refund process ho gaya hai."
     )
 
+
+
+# Milestone 4 #
 # ----------------- HEALTH & METRICS -----------------
 @app.get("/health")
 async def health():
@@ -217,3 +224,4 @@ async def metrics():
 @app.get("/")
 async def root():
     return {"message": "AI Enabled Conversational IVR (Speech Only, English + Hindi, Indian Voices) 🚀"}
+
