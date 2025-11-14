@@ -223,7 +223,8 @@ async def metrics():
 
 @app.get("/")
 async def root():
-    return {{"message": "🚀 AI Enabled Conversational IVR is running successfully! Speak in English or Hindi to interact."}
-}
+    return {"message": "🚀 AI Enabled Conversational IVR is running successfully! Speak in English or Hindi to interact."}
+
+
 
 
