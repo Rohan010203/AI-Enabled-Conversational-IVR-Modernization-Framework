@@ -84,8 +84,7 @@ async def main_menu(lang: str = "en"):
     else:
         gather.say(
             "Indian Railway Smart Voice System mein aapka swagat hai. "
-            "Aap bol sakte hain: Meri train kahan hai, Seat availability, Ticket book karo, Ticket cancel karo, Refund status. "
-            "Ya press karein 1 Train Location, 2 Seat Availability, 3 Ticket Booking, 4 Ticket Cancel, 5 Refund Status.",
+            "Aap bol sakte hain: Meri train kahan hai, Seat availability, Ticket book karo, Ticket cancel karo, Refund status. ",
             voice=voice,
             language=lang_code
         )
@@ -116,19 +115,6 @@ async def handle_input(request: Request, lang: str = "en"):
     speech = form.get("SpeechResult", "")
     response = VoiceResponse()
     voice, lang_code = VOICES[lang]
-
-    # DTMF Mapping
-    if dtmf:
-        mapping = {
-            "1": "train_location",
-            "2": "seat_availability",
-            "3": "book_ticket",
-            "4": "cancel_ticket",
-            "5": "refund_status"
-        }
-        intent = mapping.get(dtmf, "unknown")
-    else:
-        intent = detect_intent(speech)
 
     # REDIRECT TO INTENT HANDLERS
     if intent in ["train_location", "seat_availability", "book_ticket", "cancel_ticket", "refund_status"]:
@@ -238,5 +224,6 @@ async def metrics():
 @app.get("/")
 async def root():
     return {"message": "AI Enabled Conversational IVR (English + Hindi + Indian Voices) 🚀"}
+
 
 
