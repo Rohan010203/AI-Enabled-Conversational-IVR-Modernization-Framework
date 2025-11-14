@@ -34,7 +34,7 @@ async def ivr_language():
         method="POST"
     )
     gather.say(
-        "Please say your preferred language. Say English or Hindi.",
+        "Please say your preferred language. Say English or Hindi ke liye Hindi bole Hindi.",
         voice="Polly.Joanna",
         language="en-IN"
     )
@@ -198,3 +198,4 @@ async def metrics():
 @app.get("/")
 async def root():
     return {"message": "AI Enabled Conversational IVR (Speech Only, English + Hindi) 🚀"}
+
