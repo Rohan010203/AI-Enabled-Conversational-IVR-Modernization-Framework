@@ -77,8 +77,7 @@ async def main_menu(lang: str = "en"):
     if lang == "en":
         gather.say(
             "Welcome to Indian Railway Smart Voice System. "
-            "You may say: Where is my train, Seat availability, Book ticket, Cancel ticket, Refund status. "
-            "Or press 1 for Train Location, 2 for Seat Availability, 3 for Book Ticket, 4 for Cancel Ticket, 5 for Refund Status.",
+            "You may say: Where is my train, Seat availability, Book ticket, Cancel ticket, Refund status. ",
             voice=voice,
             language=lang_code
         )
@@ -239,4 +238,5 @@ async def metrics():
 @app.get("/")
 async def root():
     return {"message": "AI Enabled Conversational IVR (English + Hindi + Indian Voices) 🚀"}
+
 
