@@ -5,7 +5,7 @@ from twilio.twiml.voice_response import VoiceResponse, Gather
 import logging
 import time
 
-app = FastAPI(title="AI-Enabled Conversational IVR Modernization Framework")
+app = FastAPI(title="AI Conversational IVR – English & Hindi")
 
 # CORS
 app.add_middleware(
@@ -17,18 +17,16 @@ app.add_middleware(
 
 logging.basicConfig(level=logging.INFO)
 
-
-# -------------------------
-# VOICE CONFIG
-# -------------------------
+# ---------------------------------------------------------
+# INDIAN VOICES
+# ---------------------------------------------------------
 VOICES = {
     "en": ("alice", "en-IN"),     # Indian English voice
     "hi": ("Aditi", "hi-IN"),     # Indian Hindi voice
 }
 
-
 # ---------------------------------------------------------
-# LANGUAGE SELECTION → MAIN ENTRY
+# LANGUAGE SELECTION
 # ---------------------------------------------------------
 @app.api_route("/ivr", methods=["GET", "POST"])
 async def ivr_language():
@@ -52,24 +50,24 @@ async def ivr_language():
 
 
 # ---------------------------------------------------------
-# STORE LANGUAGE AND GO TO MAIN MENU
+# SAVE LANGUAGE → MAIN MENU
 # ---------------------------------------------------------
 @app.post("/ivr/set-language")
 async def set_language(request: Request):
     form = await request.form()
-    choice = form.get("Digits")
+    choice = form.get("Digits", "")
     response = VoiceResponse()
 
     if choice == "1":
-        response.say("You selected English.", voice="alice", language="en-IN")
         lang = "en"
+        response.say("You selected English.", voice="alice", language="en-IN")
 
     elif choice == "2":
-        response.say("Aapne Hindi chuni hai.", voice="Aditi", language="hi-IN")
         lang = "hi"
+        response.say("Aapne Hindi chuni hai.", voice="Aditi", language="hi-IN")
 
     else:
-        response.say("Invalid choice. Returning to main menu.", voice="alice", language="en-IN")
+        response.say("Invalid choice. Please try again.", voice="alice", language="en-IN")
         response.redirect("/ivr")
         return Response(str(response), media_type="application/xml")
 
@@ -78,10 +76,10 @@ async def set_language(request: Request):
 
 
 # ---------------------------------------------------------
-# MAIN MENU BASED ON LANGUAGE
+# MAIN MENU (Speech Recognition)
 # ---------------------------------------------------------
-@app.get("/ivr/main-menu")
-async def main_menu(lang: str):
+@app.api_route("/ivr/main-menu", methods=["GET", "POST"])
+async def main_menu(lang: str = "en"):
     response = VoiceResponse()
     voice, lang_code = VOICES[lang]
 
@@ -94,15 +92,15 @@ async def main_menu(lang: str):
     if lang == "en":
         gather.say(
             "Welcome to Indian Railway Smart Voice System. "
-            "You can say: Where is my train, Ticket booking, Cancel ticket, Refund status, Seat availability.",
+            "You may say: Where is my train, Seat availability, Ticket booking, Cancel ticket, Refund status.",
             voice=voice,
             language=lang_code
         )
 
     elif lang == "hi":
         gather.say(
-            "Indian Railway Smart Voice System me aapka swagat hai. "
-            "Bol sakte hain: Meri train kahan hai, Ticket book karo, Ticket cancel karo, Refund status, Seat availability.",
+            "Indian Railway Smart Voice System mein aapka swagat hai. "
+            "Aap bol sakte hain: Meri train kahan hai, Seat availability, Ticket book karo, Ticket cancel karo, Refund status.",
             voice=voice,
             language=lang_code
         )
@@ -120,7 +118,7 @@ def detect_intent(text: str):
     if "where" in text or "train" in text or "kahan" in text:
         return "train_location"
 
-    if "seat" in text or "availability" in text or "seat" in text:
+    if "seat" in text or "availability" in text:
         return "seat_availability"
 
     if "book" in text or "booking" in text or "ticket" in text:
@@ -136,18 +134,18 @@ def detect_intent(text: str):
 
 
 # ---------------------------------------------------------
-# HANDLE SPEECH → INTENT ROUTING
+# SPEECH PROCESSOR
 # ---------------------------------------------------------
 @app.post("/ivr/handle-speech")
-async def handle_speech(request: Request, lang: str):
+async def handle_speech(request: Request, lang: str = "en"):
     form = await request.form()
     speech = form.get("SpeechResult", "")
-    intent = detect_intent(speech)
 
+    intent = detect_intent(speech)
     response = VoiceResponse()
     voice, lang_code = VOICES[lang]
 
-    # TRAIN LOCATION
+    # TRAIN LOCATION → ENTER TRAIN NUMBER
     if intent == "train_location":
         gather = response.gather(
             input="dtmf",
@@ -155,6 +153,7 @@ async def handle_speech(request: Request, lang: str):
             action=f"/ivr/train-location?lang={lang}",
             method="POST"
         )
+
         if lang == "en":
             gather.say("Please enter your train number.", voice=voice, language=lang_code)
         else:
@@ -170,6 +169,7 @@ async def handle_speech(request: Request, lang: str):
             action=f"/ivr/seat-availability?lang={lang}",
             method="POST"
         )
+
         if lang == "en":
             gather.say("Enter your train number for seat availability.", voice=voice, language=lang_code)
         else:
@@ -191,9 +191,9 @@ async def handle_speech(request: Request, lang: str):
 # TRAIN LOCATION RESULT
 # ---------------------------------------------------------
 @app.post("/ivr/train-location")
-async def train_location(request: Request, lang: str):
+async def train_location(request: Request, lang: str = "en"):
     form = await request.form()
-    train_no = form.get("Digits")
+    train_no = form.get("Digits", "00000")
 
     response = VoiceResponse()
     voice, lang_code = VOICES[lang]
@@ -211,9 +211,9 @@ async def train_location(request: Request, lang: str):
 # SEAT AVAILABILITY RESULT
 # ---------------------------------------------------------
 @app.post("/ivr/seat-availability")
-async def seat_availability(request: Request, lang: str):
+async def seat_availability(request: Request, lang: str = "en"):
     form = await request.form()
-    train_no = form.get("Digits")
+    train_no = form.get("Digits", "00000")
 
     response = VoiceResponse()
     voice, lang_code = VOICES[lang]
@@ -228,16 +228,8 @@ async def seat_availability(request: Request, lang: str):
 
 
 # ---------------------------------------------------------
-# HEALTH + METRICS
+# ROOT (HEALTH)
 # ---------------------------------------------------------
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
-
-@app.get("/metrics")
-async def metrics():
-    return {"uptime_seconds": round(time.process_time(), 2)}
-
 @app.get("/")
 async def root():
-    return {"message": "AI Enabled Conversational IVR (English + Hindi + Indian Voices) 🚀"}
+    return {"message": "IVR Running (English + Hindi + Indian Voices)"}
