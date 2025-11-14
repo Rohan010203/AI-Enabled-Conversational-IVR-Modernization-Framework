@@ -76,6 +76,7 @@ flowchart TD
     G --> H[Twilio XML Response]
     H -->|Voice Reply| A
 ```
+---
  📁 ivr-project/
 │
 ├─ Backend_ivr.py            # FastAPI backend for AI Conversational IVR 
@@ -89,6 +90,8 @@ flowchart TD
 ├─ Unit_Test/                # Folder for unit test scripts and results
 └─ PPT/                      # Folder containing presentation files
 ---
+
+---
 ## ⚙️ Tech Stack
 
 | Component | Technology Used |
@@ -101,6 +104,7 @@ flowchart TD
 | **Monitoring** | Twilio Console |
 | **Environment Management** | dotenv |
 
+---
 # AI Conversational IVR
 
 This is a **speech-only AI-enabled IVR system** supporting English and Hindi with Indian voices.
