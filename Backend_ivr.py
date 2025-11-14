@@ -1,90 +1,172 @@
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import Response
-from twilio.twiml.voice_response import VoiceResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import Response, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from twilio.twiml.voice_response import VoiceResponse, Gather
+import time
+import logging
 
-app = FastAPI()
+app = FastAPI(title="AI-Enabled Conversational IVR Backend")
 
-@app.post("/ivr")
-async def ivr_start(request: Request):
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+logging.basicConfig(level=logging.INFO)
+
+
+# ==========================================================
+# 1️⃣ MAIN IVR ENTRY (DTMF + SPEECH)
+# ==========================================================
+@app.api_route("/ivr", methods=["GET", "POST"])
+async def ivr_entry():
+    """Main IVR menu — welcomes and allows both DTMF and speech"""
+
     response = VoiceResponse()
 
-    gather = response.gather(
-        input="speech",
-        action="/process-voice",
-        language="en-IN",
-        speech_timeout="auto"
+    gather = Gather(
+        input="speech dtmf",
+        timeout=5,
+        num_digits=1,
+        action="/ivr/router",
+        method="POST"
     )
 
     gather.say(
-        "Namaste, this is the I R C T C conversational railway assistant. "
-        "How can I help you today?",
+        """
+        Welcome to Indian Railway Booking System.
+
+        Say or Press:
+        1 for Train Availability.
+        2 for P N R Status.
+        3 for Customer Agent.
+        4 for Ticket Cancellation.
+        5 for Refund Status.
+        6 for Train Running Status.
+        7 for Seat Availability.
+        8 for Station Enquiry.
+        9 for Main Menu again.
+        """,
         voice="alice"
     )
 
-    return Response(content=str(response), media_type="application/xml")
+    response.append(gather)
+
+    return Response(str(response), media_type="application/xml")
 
 
-# -----------------------------------------------------
-# 2️⃣ Process Speech → Send to AI → Return Voice Output
-# -----------------------------------------------------
-@app.post("/process-voice")
-async def process_voice(request: Request):
+# ==========================================================
+# 2️⃣ ROUTING BASED ON USER INPUT (Speech or DTMF)
+# ==========================================================
+@app.post("/ivr/router")
+async def ivr_router(request: Request):
+
     form = await request.form()
-    user_text = form.get("SpeechResult")
+    digit = form.get("Digits")          # DTMF
+    speech = form.get("SpeechResult")   # Speech
 
-    response = VoiceResponse()
+    logging.info(f"DTMF: {digit}, SPEECH: {speech}")
 
-    if not user_text:
-        response.say("Sorry, I did not catch that. Please say again.", voice="alice")
-        response.redirect("/ivr")
-        return Response(content=str(response), media_type="application/xml")
+    # DTMF routing
+    if digit:
+        return await route_dtmf(digit)
 
-    # 🌟 AI PROCESSING
-    ai_reply = get_ai_response(user_text)
+    # Speech routing
+    if speech:
+        return await route_speech(speech)
 
-    # 🌟 Return the AI Reply as Voice
-    response.say(ai_reply, voice="alice")
-
-    # Continue conversation
-    response.redirect("/ivr")
-
-    return Response(content=str(response), media_type="application/xml")
-
-
-# ------------------------------------------
-# 3️⃣ AI Logic: Natural Conversation Handling
-# ------------------------------------------
-def get_ai_response(user_query):
-
-    prompt = f"""
-    You are an IRCTC Conversational Railway Assistant.
-    Your job is to answer only train-related queries.
-
-    User Query: {user_query}
-
-    If user asks:
-    - PNR status → ask for PNR
-    - Train running status → ask train number
-    - Ticket booking → ask destination, date, passenger details
-    - Cancellation → ask PNR
-    - Refund status → ask PNR
-    - General questions → answer politely
-
-    Keep replies short and simple for IVR.
-    """
-
-    completion = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}]
-    )
-
-    return completion.choices[0].message["content"]
+    # No input fallback
+    vr = VoiceResponse()
+    vr.say("I did not hear anything. Redirecting to main menu.")
+    vr.redirect("/ivr")
+    return Response(str(vr), media_type="application/xml")
 
 
-# ✅ Step 4: Handle favicon (to avoid 404 logs)
-@app.get("/favicon.ico")
-async def favicon():
-    return Response(status_code=204)
+# ==========================================================
+# 3️⃣ DTMF HANDLER
+# ==========================================================
+async def route_dtmf(digit):
+    messages = {
+        "1": "Train Availability can be checked on IRCTC website.",
+        "2": "Please enter your 10 digit PNR on IRCTC App.",
+        "3": "Connecting you to a Railway customer agent.",
+        "4": "Login to IRCTC account to cancel tickets.",
+        "5": "Refund is processed within 7 working days.",
+        "6": "Train is running on time.",
+        "7": "Seats are available for your selected route.",
+        "8": "Please say the station name for enquiry.",
+    }
+
+    vr = VoiceResponse()
+
+    if digit == "9":
+        vr.redirect("/ivr")
+        return Response(str(vr), media_type="application/xml")
+
+    msg = messages.get(digit, "Invalid choice. Please press a number between 1 and 9.")
+
+    vr.say(msg, voice="alice")
+    vr.hangup()
+
+    return Response(str(vr), media_type="application/xml")
 
 
+# ==========================================================
+# 4️⃣ SPEECH HANDLER (Conversational IVR)
+# ==========================================================
+def detect_intent(speech: str):
+    text = speech.lower()
+    if "book" in text:
+        return "book"
+    if "cancel" in text:
+        return "cancel"
+    if "refund" in text:
+        return "refund"
+    if "train" in text and "status" in text:
+        return "train_status"
+    if "seat" in text:
+        return "seat_availability"
+    if "station" in text:
+        return "station_enquiry"
+    return "unknown"
 
+
+async def route_speech(speech_text):
+    intent = detect_intent(speech_text)
+
+    vr = VoiceResponse()
+
+    responses = {
+        "book": "Your ticket has been booked successfully.",
+        "cancel": "Your booking has been cancelled.",
+        "refund": "Your refund is under processing.",
+        "train_status": "The train is currently running on time.",
+        "seat_availability": "Seats are available for your route.",
+        "station_enquiry": "Please mention the station name for enquiry.",
+    }
+
+    message = responses.get(intent, "Sorry, I did not understand. Please try again.")
+
+    vr.say(message, voice="alice")
+    vr.hangup()
+
+    return Response(str(vr), media_type="application/xml")
+
+
+# ==========================================================
+# 5️⃣ HEALTH & TESTS
+# ==========================================================
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "message": "IVR running fine"}
+
+@app.get("/")
+async def home():
+    return {
+        "message": "AI Conversational IVR Framework Running 🚀",
+        "routes": ["/ivr", "/health"],
+    }
