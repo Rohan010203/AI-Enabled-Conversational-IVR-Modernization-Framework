@@ -4,52 +4,87 @@ from twilio.twiml.voice_response import VoiceResponse
 
 app = FastAPI()
 
-# ✅ Step 0: Root route (health + POST handler)
-@app.get("/")
-def home():
-    return {"message": "AI IVR System is running ✅"}
-
-@app.post("/")
-def home_post():
-    return {"message": "POST request received successfully"}
-
-# ✅ Step 1: Entry point for IVR (GET + POST)
-@app.api_route("/ivr", methods=["GET", "POST"])
+@app.post("/ivr")
 async def ivr_start(request: Request):
     response = VoiceResponse()
-    response.say(
-        " My Name is Rohan Sonune Welcome to the IRCTC Booking Inquiry System. "
-        "Please enter your P N R number followed by the pound key."
+
+    gather = response.gather(
+        input="speech",
+        action="/process-voice",
+        language="en-IN",
+        speech_timeout="auto"
     )
-    response.gather(num_digits=6, action="/handle-key", method="POST")
+
+    gather.say(
+        "Namaste, this is the I R C T C conversational railway assistant. "
+        "How can I help you today?",
+        voice="alice"
+    )
+
     return Response(content=str(response), media_type="application/xml")
 
-# ✅ Step 2: Handle DTMF input (PNR digits)
-@app.post("/handle-key")
-async def handle_key(request: Request):
+
+# -----------------------------------------------------
+# 2️⃣ Process Speech → Send to AI → Return Voice Output
+# -----------------------------------------------------
+@app.post("/process-voice")
+async def process_voice(request: Request):
     form = await request.form()
-    digits = form.get("Digits")
+    user_text = form.get("SpeechResult")
 
     response = VoiceResponse()
-    if digits:
-        # Example logic: Mock status check
-        response.say(f"Your entered P N R number is {digits}. Your current status is Waiting 25.")
-        response.say("Thank you for calling Indian Railways. Have a nice day!")
-        response.hangup()
-    else:
-        response.say("No input detected. Redirecting you to the main menu.")
+
+    if not user_text:
+        response.say("Sorry, I did not catch that. Please say again.", voice="alice")
         response.redirect("/ivr")
+        return Response(content=str(response), media_type="application/xml")
+
+    # 🌟 AI PROCESSING
+    ai_reply = get_ai_response(user_text)
+
+    # 🌟 Return the AI Reply as Voice
+    response.say(ai_reply, voice="alice")
+
+    # Continue conversation
+    response.redirect("/ivr")
 
     return Response(content=str(response), media_type="application/xml")
 
-# ✅ Step 3: Manual test endpoint (GET)
-@app.get("/test/pnr")
-def test_pnr(pnr: str):
-    return {"PNR": pnr, "Status": "Waiting 25"}
+
+# ------------------------------------------
+# 3️⃣ AI Logic: Natural Conversation Handling
+# ------------------------------------------
+def get_ai_response(user_query):
+
+    prompt = f"""
+    You are an IRCTC Conversational Railway Assistant.
+    Your job is to answer only train-related queries.
+
+    User Query: {user_query}
+
+    If user asks:
+    - PNR status → ask for PNR
+    - Train running status → ask train number
+    - Ticket booking → ask destination, date, passenger details
+    - Cancellation → ask PNR
+    - Refund status → ask PNR
+    - General questions → answer politely
+
+    Keep replies short and simple for IVR.
+    """
+
+    completion = openai.ChatCompletion.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return completion.choices[0].message["content"]
+
 
 # ✅ Step 4: Handle favicon (to avoid 404 logs)
 @app.get("/favicon.ico")
 async def favicon():
     return Response(status_code=204)
+
 
 
