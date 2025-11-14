@@ -225,7 +225,18 @@ async def refund_status(request: Request, lang: str = "en"):
     response.hangup()
     return Response(str(response), media_type="application/xml")
 
-# ----------------- HEALTH CHECK -----------------
+# ---------------------------------------------------------
+# HEALTH + METRICS
+# ---------------------------------------------------------
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
+
+@app.get("/metrics")
+async def metrics():
+    return {"uptime_seconds": round(time.process_time(), 2)}
+
 @app.get("/")
 async def root():
-    return {"message": "IVR Running (English + Hindi + Indian Voices)"}
+    return {"message": "AI Enabled Conversational IVR (English + Hindi + Indian Voices) 🚀"}
+
