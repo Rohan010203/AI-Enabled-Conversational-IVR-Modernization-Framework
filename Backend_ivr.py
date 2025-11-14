@@ -19,245 +19,314 @@ app.add_middleware(
 logging.basicConfig(level=logging.INFO)
 
 # ---------------------------------------------------------
-#                  INTENT DETECTION
+#                 LANGUAGE VOICE MESSAGES
 # ---------------------------------------------------------
-def detect_intent(speech: str):
-    text = speech.lower()
 
-    # Main smart IVR flows
+LANG = {
+    "en": {
+        "welcome": "Welcome to the Indian Railway Smart Voice System.",
+        "menu": "You can say: where is my train, seat availability, book ticket, cancel ticket, refund status, train status, or station enquiry.",
+        "ask_train_number": "Please enter your 5 digit train number.",
+        "train_location": "Your train number {num} is currently at Pune Junction.",
+        "seat_available": "Seats are available for train number {num}.",
+        "ticket_booked": "Your ticket for train number {num} has been booked successfully.",
+        "ticket_cancelled": "Your ticket with P N R number {num} has been cancelled successfully.",
+        "refund_status": "The refund for P N R number {num} is being processed.",
+        "invalid": "I did not understand. Please try again.",
+        "goodbye": "Thank you for using the Indian Railway Smart Voice System."
+    },
+    "hi": {
+        "welcome": "भारतीय रेलवे स्मार्ट वॉइस सिस्टम में आपका स्वागत है।",
+        "menu": "आप कह सकते हैं: मेरी ट्रेन कहाँ है, सीट उपलब्धता, टिकट बुक करो, टिकट रद्द करो, रिफंड स्टेटस, ट्रेन स्टेटस या स्टेशन जानकारी।",
+        "ask_train_number": "कृपया अपना पाँच अंकों का ट्रेन नंबर दर्ज करें।",
+        "train_location": "आपकी ट्रेन नंबर {num} इस समय पुणे जंक्शन पर है।",
+        "seat_available": "ट्रेन नंबर {num} के लिए सीट उपलब्ध हैं।",
+        "ticket_booked": "आपका टिकट ट्रेन नंबर {num} के लिए सफलतापूर्वक बुक हो गया है।",
+        "ticket_cancelled": "पी एन आर नंबर {num} वाला आपका टिकट रद्द कर दिया गया है।",
+        "refund_status": "पी एन आर नंबर {num} का रिफंड प्रोसेस में है।",
+        "invalid": "मैं समझ नहीं पाया। कृपया दोबारा बोलें।",
+        "goodbye": "भारतीय रेलवे स्मार्ट वॉइस सिस्टम का उपयोग करने के लिए धन्यवाद।"
+    },
+    "mr": {
+        "welcome": "भारतीय रेल्वे स्मार्ट व्हॉइस सिस्टममध्ये आपले स्वागत आहे.",
+        "menu": "आपण असे बोलू शकता: माझी ट्रेन कुठे आहे, आसन उपलब्धता, तिकीट बुक करा, तिकीट रद्द करा, परतावा स्थिती, ट्रेन स्थिती किंवा स्टेशन माहिती.",
+        "ask_train_number": "कृपया पाच अंकी गाडी क्रमांक टाका.",
+        "train_location": "आपली गाडी क्रमांक {num} सध्या पुणे जंक्शनवर आहे.",
+        "seat_available": "गाडी क्रमांक {num} साठी आसन उपलब्ध आहेत.",
+        "ticket_booked": "गाडी क्रमांक {num} साठी आपले तिकीट यशस्वीरीत्या बुक केले गेले आहे.",
+        "ticket_cancelled": "पी एन आर क्रमांक {num} चे तिकीट रद्द करण्यात आले आहे.",
+        "refund_status": "पी एन आर क्रमांक {num} चा परतावा प्रक्रियेत आहे.",
+        "invalid": "मला समजले नाही. कृपया पुन्हा बोला.",
+        "goodbye": "भारतीय रेल्वे स्मार्ट व्हॉइस सिस्टम वापरल्याबद्दल धन्यवाद."
+    }
+}
+
+# ---------------------------------------------------------
+#                 DETECT INTENT
+# ---------------------------------------------------------
+
+def detect_intent(text):
+    text = text.lower()
+
     if "where is my train" in text or "train location" in text or "track my train" in text:
         return "train_location"
 
-    if "book ticket" in text or "book a ticket" in text:
-        return "book_ticket_flow"
-
-    if "cancel ticket" in text or "cancel my booking" in text:
-        return "cancel_ticket_flow"
-
-    if "refund" in text or "refund status" in text:
-        return "refund_status_flow"
-
-    # Additional simple intents
-    if "train status" in text:
-        return "train_status"
-
-    if "seat availability" in text:
+    if "seat" in text or "availability" in text:
         return "seat_availability"
 
-    if "station enquiry" in text or "station info" in text:
-        return "station_enquiry"
+    if "book" in text and "ticket" in text:
+        return "book_ticket"
+
+    if "cancel" in text and "ticket" in text:
+        return "cancel_ticket"
+
+    if "refund" in text:
+        return "refund_status"
+
+    if "train status" in text:
+        return "train_status"
 
     return "unknown"
 
 
 # ---------------------------------------------------------
-#                  SPEECH IVR ENTRY POINT
+#        STEP 1 — LANGUAGE SELECTION (Speech + DTMF)
 # ---------------------------------------------------------
+
 @app.api_route("/ivr", methods=["GET", "POST"])
-async def ivr_entry():
-    response = VoiceResponse()
-    gather = Gather(input="speech", action="/ivr/handle-speech", method="POST", timeout=6)
-    gather.say(
-        "Welcome to the Indian Railway System. "
-        "You can say: where is my train, book ticket, cancel ticket, refund status, "
-        "train status, seat availability, or station enquiry.",
-        voice="alice"
+async def ivr_language():
+    vr = VoiceResponse()
+    gather = vr.gather(
+        input="speech dtmf",
+        num_digits=1,
+        action="/ivr/set-language",
+        method="POST",
+        timeout=6
     )
-    response.append(gather)
-    return Response(str(response), media_type="application/xml")
+
+    gather.say("Please select your language. For English press 1 or say English. For Hindi press 2 or say Hindi. For Marathi press 3 or say Marathi.", voice="alice")
+
+    return Response(str(vr), media_type="application/xml")
 
 
 # ---------------------------------------------------------
-#             HANDLE SPEECH RECOGNITION OUTPUT
+#    Store Language + Go to next conversational menu
 # ---------------------------------------------------------
+
+@app.post("/ivr/set-language")
+async def set_language(request: Request):
+    form = await request.form()
+    digit = form.get("Digits")
+    speech = form.get("SpeechResult", "").lower()
+
+    lang = "en"
+
+    if digit == "1" or "english" in speech:
+        lang = "en"
+    elif digit == "2" or "hindi" in speech:
+        lang = "hi"
+    elif digit == "3" or "marathi" in speech:
+        lang = "mr"
+
+    vr = VoiceResponse()
+
+    # Store language in redirect URL
+    vr.redirect(f"/ivr/main-menu?lang={lang}")
+
+    return Response(str(vr), media_type="application/xml")
+
+
+# ---------------------------------------------------------
+#               MAIN MENU (Based on Language)
+# ---------------------------------------------------------
+
+@app.get("/ivr/main-menu")
+async def main_menu(lang: str = "en"):
+    vr = VoiceResponse()
+    gather = vr.gather(
+        input="speech",
+        action=f"/ivr/handle-speech?lang={lang}",
+        method="POST",
+        timeout=6
+    )
+
+    gather.say(LANG[lang]["welcome"], voice="alice")
+    gather.say(LANG[lang]["menu"], voice="alice")
+
+    return Response(str(vr), media_type="application/xml")
+
+
+# ---------------------------------------------------------
+#     Handle Caller Speech After Language Selection
+# ---------------------------------------------------------
+
 @app.post("/ivr/handle-speech")
-async def handle_speech(request: Request):
+async def handle_speech(request: Request, lang: str = "en"):
     form = await request.form()
-    speech_text = form.get("SpeechResult", "")
+    speech = form.get("SpeechResult", "")
 
-    logging.info(f"Speech recognized: {speech_text}")
+    intent = detect_intent(speech)
 
-    if not speech_text:
-        vr = VoiceResponse()
-        vr.say("Sorry, I did not hear anything. Please try again.", voice="alice")
-        vr.hangup()
-        return Response(str(vr), media_type="application/xml")
+    vr = VoiceResponse()
 
-    intent = detect_intent(speech_text)
-
-    # -----------------------------------------
-    # Smart conversational flow 1: Train Location
-    # -----------------------------------------
+    # --------------- Train Location ---------------
     if intent == "train_location":
-        vr = VoiceResponse()
         gather = vr.gather(
             input="dtmf",
             num_digits=5,
-            action="/ivr/train-location-result",
+            action=f"/ivr/train-location?lang={lang}",
             method="POST"
         )
-        gather.say("Sure. Please enter your 5 digit train number.", voice="alice")
+        gather.say(LANG[lang]["ask_train_number"], voice="alice")
         return Response(str(vr), media_type="application/xml")
 
-    # -----------------------------------------
-    # Smart flow 2: Book Ticket
-    # -----------------------------------------
-    if intent == "book_ticket_flow":
-        vr = VoiceResponse()
+    # --------------- Seat Availability ---------------
+    if intent == "seat_availability":
         gather = vr.gather(
             input="dtmf",
             num_digits=5,
-            action="/ivr/book-ticket",
+            action=f"/ivr/seat?lang={lang}",
             method="POST"
         )
-        gather.say("To book your ticket, please enter your 5 digit train number.", voice="alice")
+        gather.say(LANG[lang]["ask_train_number"], voice="alice")
         return Response(str(vr), media_type="application/xml")
 
-    # -----------------------------------------
-    # Smart flow 3: Cancel Ticket
-    # -----------------------------------------
-    if intent == "cancel_ticket_flow":
-        vr = VoiceResponse()
+    # --------------- Book Ticket ---------------
+    if intent == "book_ticket":
+        gather = vr.gather(
+            input="dtmf",
+            num_digits=5,
+            action=f"/ivr/book?lang={lang}",
+            method="POST"
+        )
+        gather.say(LANG[lang]["ask_train_number"], voice="alice")
+        return Response(str(vr), media_type="application/xml")
+
+    # --------------- Cancel Ticket ---------------
+    if intent == "cancel_ticket":
         gather = vr.gather(
             input="dtmf",
             num_digits=10,
-            action="/ivr/cancel-ticket",
+            action=f"/ivr/cancel?lang={lang}",
             method="POST"
         )
-        gather.say("Please enter your 10 digit P N R number to cancel your ticket.", voice="alice")
+        gather.say("Please enter your PNR number.", voice="alice")
         return Response(str(vr), media_type="application/xml")
 
-    # -----------------------------------------
-    # Smart flow 4: Refund Status
-    # -----------------------------------------
-    if intent == "refund_status_flow":
-        vr = VoiceResponse()
+    # --------------- Refund Status ---------------
+    if intent == "refund_status":
         gather = vr.gather(
             input="dtmf",
             num_digits=10,
-            action="/ivr/refund-status",
+            action=f"/ivr/refund?lang={lang}",
             method="POST"
         )
-        gather.say("Please enter your 10 digit P N R number to check your refund status.", voice="alice")
+        gather.say("Please enter your PNR number.", voice="alice")
         return Response(str(vr), media_type="application/xml")
 
-    # ---------------------------
-    # Simple direct intents
-    # ---------------------------
-    direct_intents = {
-        "train_status": "The train is running on time.",
-        "seat_availability": "Seats are available for your selected train.",
-        "station_enquiry": "Please specify the station name next time."
-    }
+    # Unknown
+    vr.say(LANG[lang]["invalid"], voice="alice")
+    vr.redirect(f"/ivr/main-menu?lang={lang}")
+    return Response(str(vr), media_type="application/xml")
 
-    message = direct_intents.get(intent, "Sorry, I did not understand your request.")
+
+# ---------------------------------------------------------
+#            Train Location Result
+# ---------------------------------------------------------
+
+@app.post("/ivr/train-location")
+async def train_location(request: Request, lang: str = "en"):
+    form = await request.form()
+    num = form.get("Digits")
 
     vr = VoiceResponse()
-    vr.say(message, voice="alice")
+    vr.say(LANG[lang]["train_location"].format(num=num), voice="alice")
+    vr.say(LANG[lang]["goodbye"], voice="alice")
     vr.hangup()
+
     return Response(str(vr), media_type="application/xml")
 
 
 # ---------------------------------------------------------
-#        TRAIN LOCATION — USER ENTERS TRAIN NUMBER
+#            Seat Availability Result
 # ---------------------------------------------------------
-@app.post("/ivr/train-location-result")
-async def train_location_result(request: Request):
+
+@app.post("/ivr/seat")
+async def seat_result(request: Request, lang: str = "en"):
     form = await request.form()
-    train_no = form.get("Digits")
+    num = form.get("Digits")
 
     vr = VoiceResponse()
-    if train_no:
-        vr.say(f"Your train number {train_no} is currently at Pune Junction.", voice="alice")
-        vr.say("Thank you for using the Indian Railway Smart Voice System.", voice="alice")
-        vr.hangup()
-    else:
-        vr.say("Invalid train number. Returning to main menu.", voice="alice")
-        vr.redirect("/ivr")
+    vr.say(LANG[lang]["seat_available"].format(num=num), voice="alice")
+    vr.say(LANG[lang]["goodbye"], voice="alice")
+    vr.hangup()
+
     return Response(str(vr), media_type="application/xml")
 
 
 # ---------------------------------------------------------
-#        BOOK TICKET — USER ENTERS TRAIN NUMBER
+#            Book Ticket Result
 # ---------------------------------------------------------
-@app.post("/ivr/book-ticket")
-async def book_ticket_result(request: Request):
+
+@app.post("/ivr/book")
+async def book_result(request: Request, lang: str = "en"):
     form = await request.form()
-    train_no = form.get("Digits")
+    num = form.get("Digits")
 
     vr = VoiceResponse()
-    if train_no:
-        vr.say(f"Your ticket for train number {train_no} has been booked successfully.", voice="alice")
-        vr.hangup()
-    else:
-        vr.say("Invalid number. Redirecting to main menu.", voice="alice")
-        vr.redirect("/ivr")
+    vr.say(LANG[lang]["ticket_booked"].format(num=num), voice="alice")
+    vr.say(LANG[lang]["goodbye"], voice="alice")
+    vr.hangup()
+
     return Response(str(vr), media_type="application/xml")
 
 
 # ---------------------------------------------------------
-#      CANCEL TICKET — USER ENTERS PNR NUMBER
+#            Cancel Ticket Result
 # ---------------------------------------------------------
-@app.post("/ivr/cancel-ticket")
-async def cancel_ticket_result(request: Request):
+
+@app.post("/ivr/cancel")
+async def cancel_result(request: Request, lang: str = "en"):
     form = await request.form()
-    pnr = form.get("Digits")
+    num = form.get("Digits")
 
     vr = VoiceResponse()
-    if pnr:
-        vr.say(f"Your ticket with P N R number {pnr} has been cancelled successfully.", voice="alice")
-        vr.hangup()
-    else:
-        vr.say("Invalid P N R. Returning to main menu.", voice="alice")
-        vr.redirect("/ivr")
+    vr.say(LANG[lang]["ticket_cancelled"].format(num=num), voice="alice")
+    vr.say(LANG[lang]["goodbye"], voice="alice")
+    vr.hangup()
+
     return Response(str(vr), media_type="application/xml")
 
 
 # ---------------------------------------------------------
-#       REFUND STATUS — USER ENTERS PNR NUMBER
+#            Refund Status Result
 # ---------------------------------------------------------
-@app.post("/ivr/refund-status")
-async def refund_status_result(request: Request):
+
+@app.post("/ivr/refund")
+async def refund_result(request: Request, lang: str = "en"):
     form = await request.form()
-    pnr = form.get("Digits")
+    num = form.get("Digits")
 
     vr = VoiceResponse()
-    if pnr:
-        vr.say(f"The refund for P N R number {pnr} is being processed and will be credited soon.", voice="alice")
-        vr.hangup()
-    else:
-        vr.say("Invalid P N R. Returning to main menu.", voice="alice")
-        vr.redirect("/ivr")
+    vr.say(LANG[lang]["refund_status"].format(num=num), voice="alice")
+    vr.say(LANG[lang]["goodbye"], voice="alice")
+    vr.hangup()
+
     return Response(str(vr), media_type="application/xml")
 
 
 # ---------------------------------------------------------
-# HEALTH + METRICS + TEST
+# HEALTH + METRICS
 # ---------------------------------------------------------
+
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "AI IVR running"}
+    return {"status": "healthy"}
 
 @app.get("/metrics")
 async def metrics():
     return {"uptime_seconds": round(time.process_time(), 2)}
 
-@app.api_route("/test/ivr", methods=["GET", "POST"])
-async def test_ivr(request: Request):
-    if request.method == "GET":
-        return {"message": "POST {input: 'where is my train'} to test"}
-    data = await request.json()
-    text = data.get("input", "")
-    return {"input": text, "intent": detect_intent(text)}
-
-
-# ---------------------------------------------------------
-# ROOT
-# ---------------------------------------------------------
 @app.get("/")
 async def root():
-    return {
-        "message": "AI-Enabled Conversational IVR Modernization Framework 🚀",
-        "routes": ["/ivr", "/health", "/metrics", "/test/ivr"]
-    }
-
+    return {"message": "AI Enabled Conversational IVR (English + Hindi + Marathi) 🚀"}
