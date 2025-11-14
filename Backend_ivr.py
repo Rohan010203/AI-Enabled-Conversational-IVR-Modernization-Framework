@@ -58,7 +58,7 @@ async def ivr_entry():
     response = VoiceResponse()
     gather = Gather(input="speech", action="/ivr/handle-speech", method="POST", timeout=6)
     gather.say(
-        "Welcome to the Indian Railway Smart Voice System. "
+        "Welcome to the Indian Railway System. "
         "You can say: where is my train, book ticket, cancel ticket, refund status, "
         "train status, seat availability, or station enquiry.",
         voice="alice"
@@ -260,3 +260,4 @@ async def root():
         "message": "AI-Enabled Conversational IVR Modernization Framework 🚀",
         "routes": ["/ivr", "/health", "/metrics", "/test/ivr"]
     }
+
