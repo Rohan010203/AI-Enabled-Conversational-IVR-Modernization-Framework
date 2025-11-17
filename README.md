@@ -91,9 +91,9 @@ flowchart TD
 ├─ README.md                 # Project documentation + deployment URL
 ├─ LICENSE.md                # License info
 ├─ Milestone 1.docx          # Milestone report/document
-├─ agile.docx                # Agile methodology documentation
-├─ Defect_Tracker.docx       # Defect tracking report
-├─ Unit_Test/                # Folder for unit test scripts and results
+├─ agile.xlsx                # Agile methodology documentation
+├─ Defect_Tracker.xlsx       # Defect tracking report
+├─ Unit_Test_Plan.xlsx                # Folder for unit test scripts and results
 └─ PPT/                      # Folder containing presentation files
 ---
 
