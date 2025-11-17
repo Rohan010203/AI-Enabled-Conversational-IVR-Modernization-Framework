@@ -28,17 +28,15 @@ This project enables customers to interact with systems in a **natural, human-li
 - Document architecture, integration needs, and compatibility gaps  
 - Identify technical challenges and constraints  
 
-### ⚙️ Milestone 2 – DTMF IVR Flow
+### ⚙️ Milestone 2 –  IVR Flow
 - Welcome menu with multiple options:
   - 1️⃣ Train Availability  
   - 2️⃣ PNR Status  
-  - 3️⃣ Customer Agent  
-  - 4️⃣ Ticket Cancellation  
-  - 5️⃣ Refund Status  
-  - 6️⃣ Train Running Status  
-  - 7️⃣ Seat Availability  
-  - 8️⃣ Station Enquiry  
-  - 9️⃣ Return to Main Menu
+  - 3️⃣ Ticket Cancellation    
+  - 4️⃣ Refund Status
+  - 5️⃣ Train Running Status
+  - 6️⃣ Seat Availability 
+  - 7️⃣ Station Enquiry
 - TwiML responses for each user input  
 - Redirects and graceful handling of invalid options  
 
