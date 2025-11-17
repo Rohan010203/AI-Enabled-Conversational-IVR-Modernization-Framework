@@ -81,7 +81,7 @@ async def main_menu(lang: str = "en"):
         )
     else:
         gather.say(
-            "Kripya bataye aaj main aapki kaise madad kar sakta hoon. "
+            "Kripya bataye aaj main aapki kaise madad kar sakti hoon. "
             "Aap bol sakte hain: Meri train kahan hai, Seat availability, Ticket book karo, "
             "Ticket cancel karo, Refund status.",
             voice=voice, language=lang_code
@@ -297,3 +297,4 @@ async def metrics():
 @app.get("/")
 async def root():
     return {"message": "🚀 AI Enabled Conversational IVR is running successfully! Speak in English or Hindi to interact."}
+
