@@ -65,14 +65,22 @@ This project enables customers to interact with systems in a **natural, human-li
 
 ```mermaid
 flowchart TD
-    A[Caller] -->|Voice Call| B[Twilio IVR]
-    B --> C[ FastAPI Backend]
-    C --> D[Speech to Text Engine - Twilio ]
-    D --> E[NLU Engine -  Dialogflow ]
-    E --> F[Intent Classification and Response Generation]
-    F --> G[Backend Logic and Database]
-    G --> H[Twilio XML Response]
-    H -->|Voice Reply| A
+    A[Caller] -->|Voice Call| B[Twilio Voice API]
+
+    B -->|Webhook Request| C[FastAPI Backend - IVR Endpoints]
+
+    C --> D[Twilio Speech-to-Text Engine]
+
+    D --> E[Backend NLU Engine - Intent Detection]
+
+    E --> F[Intent Routing - Train Location, Seat Availability, Booking, Cancellation, Refund]
+
+    F --> G[Business Logic Handlers]
+
+    G --> H[Twilio XML Response - VoiceResponse]
+
+    H -->|Voice Reply TTS - Polly Voices| A
+
 ```
 ---
  📁 ivr-project/
