@@ -7,7 +7,6 @@ import time
 
 app = FastAPI(title="AI Conversational IVR – Speech Only (Indian Voices)")
 
-# Milestone 2 #
 # ----------------- CORS -----------------
 app.add_middleware(
     CORSMiddleware,
@@ -20,8 +19,8 @@ logging.basicConfig(level=logging.INFO)
 
 # ----------------- VOICES -----------------
 VOICES = {
-    "en": ("Polly.Raveena", "en-IN"),  # Indian English voice
-    "hi": ("Polly.Aditi", "hi-IN"),    # Indian Hindi voice
+    "en": ("Polly.Raveena", "en-IN"),
+    "hi": ("Polly.Aditi", "hi-IN"),
 }
 
 # ----------------- HOME / LANGUAGE SELECTION -----------------
@@ -43,6 +42,7 @@ async def ivr_language():
     response.append(gather)
     return Response(str(response), media_type="application/xml")
 
+
 # ----------------- SET LANGUAGE -----------------
 @app.post("/ivr/set-language")
 async def set_language(request: Request):
@@ -53,9 +53,11 @@ async def set_language(request: Request):
     if "english" in speech:
         lang = "en"
         response.say("You selected English.", voice="Polly.Raveena", language="en-IN")
+
     elif "hindi" in speech or "hi" in speech:
         lang = "hi"
         response.say("Aapne Hindi chuni hai.", voice="Polly.Aditi", language="hi-IN")
+
     else:
         response.say(
             "Sorry, I did not understand. Please say English or Hindi.",
@@ -67,6 +69,7 @@ async def set_language(request: Request):
 
     response.redirect(f"/ivr/main-menu?lang={lang}")
     return Response(str(response), media_type="application/xml")
+
 
 # ----------------- MAIN MENU -----------------
 @app.api_route("/ivr/main-menu", methods=["GET", "POST"])
@@ -101,8 +104,6 @@ async def main_menu(lang: str = "en"):
     return Response(str(response), media_type="application/xml")
 
 
-
-# milestone 3 #
 # ----------------- INTENT DETECTION -----------------
 def detect_intent(text: str):
     text = text.lower()
@@ -117,6 +118,7 @@ def detect_intent(text: str):
     if "refund" in text:
         return "refund_status"
     return "unknown"
+
 
 # ----------------- HANDLE SPEECH INPUT -----------------
 @app.post("/ivr/handle-input")
@@ -139,16 +141,17 @@ async def handle_input(request: Request, lang: str = "en"):
         # Ask train number or PNR based on intent
         if intent in ["book_ticket", "seat_availability", "train_location"]:
             prompt_en = f"Please say your train number to proceed with {intent.replace('_',' ')}."
-            prompt_hi = f"Kripya apna train number bolen for {intent.replace('_',' ')}."
-        else:  # cancel_ticket or refund_status
-            prompt_en = f"Please say your PNR number to proceed with {intent.replace('_',' ')}."
-            prompt_hi = f"Kripya apna PNR number bolen for {intent.replace('_',' ')}."
+            prompt_hi = f"Kripya apna train number bataye {intent.replace('_',' ')} ke liye."
 
-        gather.say(prompt_en if lang=="en" else prompt_hi, voice=voice, language=lang_code)
+        else:  # cancel_ticket or refund_status
+            prompt_en = "Please say your PNR number."
+            prompt_hi = "Kripya apna PNR number bataye."
+
+        gather.say(prompt_en if lang == "en" else prompt_hi, voice=voice, language=lang_code)
         response.append(gather)
         return Response(str(response), media_type="application/xml")
 
-    # Unknown input
+    # Unknown input handling
     if lang == "en":
         response.say("Sorry, I did not understand. Let's try again.", voice=voice, language=lang_code)
     else:
@@ -157,16 +160,29 @@ async def handle_input(request: Request, lang: str = "en"):
     response.redirect(f"/ivr/main-menu?lang={lang}")
     return Response(str(response), media_type="application/xml")
 
-# ----------------- INTENT HANDLERS -----------------
-async def handle_number_response(request: Request, lang: str, message_template: str):
+
+# ----------------- GENERALIZED NUMBER HANDLER -----------------
+async def handle_number_response(request: Request, lang: str, main_message: str, include_email_message=False):
     form = await request.form()
-    number = form.get("SpeechResult", "00000")  # Train number or PNR
+    number = form.get("SpeechResult", "00000")
     response = VoiceResponse()
     voice, lang_code = VOICES[lang]
 
-    response.say(message_template.format(number=number), voice=voice, language=lang_code)
+    # Main response
+    response.say(main_message.format(number=number), voice=voice, language=lang_code)
+
+    # NEW: EMAIL MESSAGE
+    if include_email_message:
+        if lang == "en":
+            response.say("Your PNR detailed information has been sent to your registered email ID.",
+                         voice=voice, language=lang_code)
+        else:
+            response.say("Aapke PNR ki vistar se jaankari aapke registered email par bhej di gayi hai.",
+                         voice=voice, language=lang_code)
+
+    # Closing
     response.say(
-        "Thank you for using Indian Railway Smart Voice System. Goodbye!" if lang=="en"
+        "Thank you for using Indian Railway Smart Voice System. Goodbye!" if lang == "en"
         else "Indian Railway Smart Voice System ka upyog karne ke liye dhanyavaad. Alvida!",
         voice=voice,
         language=lang_code
@@ -174,57 +190,66 @@ async def handle_number_response(request: Request, lang: str, message_template: 
     response.hangup()
     return Response(str(response), media_type="application/xml")
 
+
+# ----------------- INTENT SPECIFIC HANDLERS -----------------
 @app.post("/ivr/train_location")
 async def train_location(request: Request, lang: str = "en"):
     return await handle_number_response(
         request, lang,
-        message_template="Train {number} is currently at Pune Junction." if lang=="en" else "Train {number} samay Pune Junction par hai."
+        main_message="Train {number} is currently at Pune Junction." if lang == "en" else
+        "Train {number} samay Pune Junction par hai."
     )
+
 
 @app.post("/ivr/seat_availability")
 async def seat_availability(request: Request, lang: str = "en"):
     return await handle_number_response(
         request, lang,
-        message_template="Seats are available for train {number}." if lang=="en" else "Train {number} ke liye seats available hain."
+        main_message="Seats are available for train {number}." if lang == "en" else
+        "Train {number} ke liye seats available hain."
     )
+
 
 @app.post("/ivr/book_ticket")
 async def book_ticket(request: Request, lang: str = "en"):
     return await handle_number_response(
         request, lang,
-        message_template="Ticket booked for train {number}." if lang=="en" else "Train {number} ke liye ticket book ho gaya hai."
+        main_message="Ticket booked for train {number}." if lang == "en" else
+        "Train {number} ke liye ticket book ho gaya hai."
     )
+
 
 @app.post("/ivr/cancel_ticket")
 async def cancel_ticket(request: Request, lang: str = "en"):
     return await handle_number_response(
         request, lang,
-        message_template="Ticket for PNR {number} has been cancelled." if lang=="en" else "PNR {number} ke liye ticket cancel ho gaya hai."
+        main_message="Ticket for PNR {number} has been cancelled." if lang == "en" else
+        "PNR {number} ke liye ticket cancel ho gaya hai.",
+        include_email_message=True
     )
+
 
 @app.post("/ivr/refund_status")
 async def refund_status(request: Request, lang: str = "en"):
     return await handle_number_response(
         request, lang,
-        message_template="Refund processed for PNR {number}." if lang=="en" else "PNR {number} ke liye refund process ho gaya hai."
+        main_message="Refund processed for PNR {number}." if lang == "en" else
+        "PNR {number} ke liye refund process ho gaya hai.",
+        include_email_message=True
     )
 
 
-
-# Milestone 4 #
 # ----------------- HEALTH & METRICS -----------------
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
 
+
 @app.get("/metrics")
 async def metrics():
     return {"uptime_seconds": round(time.process_time(), 2)}
 
+
 @app.get("/")
 async def root():
     return {"message": "🚀 AI Enabled Conversational IVR is running successfully! Speak in English or Hindi to interact."}
-
-
-
-
