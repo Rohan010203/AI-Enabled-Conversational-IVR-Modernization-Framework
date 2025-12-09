@@ -93,8 +93,8 @@ flowchart TD
 ├─ Milestone 1.docx          # Milestone report/document
 ├─ agile.xlsx                # Agile methodology documentation
 ├─ Defect_Tracker.xlsx       # Defect tracking report
-├─ Unit_Test_Plan.xlsx                # Folder for unit test scripts and results
-└─ PPT/                      # Folder containing presentation files
+├─ Unit_Test_Plan.xlsx       # Folder for unit test scripts and results
+└─ Project PPT.pptx          # Folder containing presentation files
 ---
 
 ---
